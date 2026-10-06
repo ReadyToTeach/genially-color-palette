@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Genially Color Palette</title>
+
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#f7f7f5,#171717);
+  --panel: light-dark(#fff,#232323);
+  --text: light-dark(#171717,#f4f4f4);
+  --muted: light-dark(#707070,#aaa);
+  --border: light-dark(#e6e6e6,#3a3a3a);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.widget {
+  width: min(980px, 100%);
+  margin: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.top {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 400px;
+}
+
+.palette {
+  padding: 16px;
+  border-right: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  align-content: start;
+}
+
+.swatch {
+  height: 60px;
+  border: 1px solid #0002;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: .15s;
+}
+
+.swatch:hover {
+  transform: scale(1.04);
+}
+
+.swatch.active {
+  outline: 3px solid var(--text);
+  outline-offset: 2px;
+}
+
+.canvas {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.canvasHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selected {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 9px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+
+.stage {
+  flex: 1;
+  min-height: 300px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    repeating-conic-gradient(
+      #eee 0 25%,
+      #fff 0 50%
+    ) 50% / 24px 24px;
+}
+
+.art {
+  max-width: 85%;
+  max-height: 330px;
+  object-fit: contain;
+}
+
+.empty {
+  max-width: 400px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 30px;
+}
+
+@media(max-width:650px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+
+  .palette {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    grid-template-columns: repeat(5,1fr);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<main id="app">
+<section class="widget">
+
+<div class="top">
+  <div class="title">Палитра</div>
+  <div class="hint">
+    Выберите цвет
+  </div>
+</div>
+
+<div class="body">
+
+<aside class="palette" id="palette"></aside>
+
+<section class="canvas">
+
+<div class="canvasHead">
+
+<div class="selected" id="selected">
+  Цвет не выбран
+</div>
+
+<div class="actions">
+  <button class="btn" id="reset">
+    Сбросить
+  </button>
+
+  <button class="btn" id="upload">
+    Загрузить
+  </button>
+
+  <input
+    id="file"
+    type="file"
+    accept="image/png,image/svg+xml"
+    hidden
+  >
+</div>
+
+</div>
+
+<div class="stage">
+
+<div class="empty" id="empty">
+  Загрузите чёрно-белое PNG или SVG
+</div>
+
+<img
+  class="art"
+  id="art"
+  alt="Изображение"
+  hidden
+>
+
+</div>
+
+</section>
+
+</div>
+
+</section>
+</main>
+
+<script>
+
+const colors = [
+
+  ["yellow","#FFD43B"],
+  ["red","#EF4444"],
+  ["blue","#3B82F6"],
+  ["green","#22C55E"],
+  ["pink","#EC4899"],
+  ["purple","#8B5CF6"],
+  ["orange","#F97316"],
+  ["brown","#8B5E3C"],
+  ["black","#111111"],
+  ["white","#FFFFFF"]
+
+];
+
+const palette =
+  document.getElementById("palette");
+
+const art =
+  document.getElementById("art");
+
+const file =
+  document.getElementById("file");
+
+const empty =
+  document.getElementById("empty");
+
+const selected =
+  document.getElementById("selected");
+
+let currentColor = "#3B82F6";
+
+let source = null;
+
+
+/* Создание кнопок цветов */
+
+function renderPalette() {
+
+  palette.innerHTML = "";
+
+  colors.forEach(function(color) {
+
+    const key = color[0];
+    const hex = color[1];
+
+    const button =
+      document.createElement("button");
+
+    button.className = "swatch";
+
+    button.style.background = hex;
+
+    button.title = key;
+
+    if (hex === currentColor) {
+      button.classList.add("active");
+    }
+
+    button.onclick = function() {
+
+      setColor(key);
+
+    };
+
+    palette.appendChild(button);
+
+  });
+
+}
+
+
+/* Применение цвета */
+
+function setColor(key) {
+
+  const color =
+    colors.find(function(item) {
+      return item[0] === key;
+    });
+
+  if (!color) return;
+
+  currentColor = color[1];
+
+  selected.textContent =
+    "Выбран: " + key;
+
+  if (source) {
+
+    applyColor();
+
+  }
+
+  renderPalette();
+
+}
+
+
+/* Окрашивание изображения */
+
+function applyColor() {
+
+  art.style.backgroundColor =
+    currentColor;
+
+  art.style.mixBlendMode =
+    "multiply";
+
+  art.style.filter =
+    "brightness(0) saturate(100%)";
+
+}
+
+
+/* Загрузка изображения */
+
+function loadImage(url) {
+
+  source = url;
+
+  art.src = url;
+
+  art.hidden = false;
+
+  empty.hidden = true;
+
+  art.onload = function() {
+
+    applyColor();
+
+  };
+
+}
+
+
+/* Кнопка загрузки */
+
+document
+  .getElementById("upload")
+  .onclick = function() {
+
+    file.click();
+
+  };
+
+
+file.onchange = function(event) {
+
+  const selectedFile =
+    event.target.files[0];
+
+  if (!selectedFile) return;
+
+  const url =
+    URL.createObjectURL(selectedFile);
+
+  loadImage(url);
+
+};
+
+
+/* Сброс */
+
+document
+  .getElementById("reset")
+  .onclick = function() {
+
+    currentColor = "#3B82F6";
+
+    selected.textContent =
+      "Цвет не выбран";
+
+    art.style.backgroundColor =
+      "";
+
+    art.style.mixBlendMode =
+      "normal";
+
+    art.style.filter =
+      "";
+
+    renderPalette();
+
+  };
+
+
+/*
+  API для Genially
+*/
+
+window.GeniallyColorPalette = {
+
+  setImage: function(url) {
+
+    loadImage(url);
+
+  },
+
+  setColor: function(key) {
+
+    setColor(key);
+
+  },
+
+  getColor: function(key) {
+
+    const color =
+      colors.find(function(item) {
+        return item[0] === key;
+      });
+
+    if (!color) return null;
+
+    return {
+      key: color[0],
+      hex: color[1]
+    };
+
+  },
+
+  colors: colors.map(function(item) {
+
+    return {
+      key: item[0],
+      hex: item[1]
+    };
+
+  })
+
+};
+
+
+/*
+  Можно открыть:
+
+  ?image=URL_КАРТИНКИ
+  ?color=blue
+
+  Например:
+
+  index.html?image=https://example.com/picture.png&color=blue
+*/
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+const image =
+  params.get("image");
+
+const color =
+  params.get("color");
+
+
+if (image) {
+
+  loadImage(image);
+
+}
+
+
+if (color) {
+
+  setColor(color);
+
+}
+
+
+renderPalette();
+
+</script>
+
+</body>
+</html>
